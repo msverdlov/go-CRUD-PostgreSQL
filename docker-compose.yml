@@ -1,0 +1,33 @@
+version: "3.9"
+
+services:
+  db:
+    container_name: "PostgreSQL3_service"
+    image: postgres:13.3
+    environment:
+      POSTGRES_DB: "anyDataDB"
+      POSTGRES_USER: "goUser"
+      POSTGRES_PASSWORD: "!JustPwd4goUsr#74Anna"
+    volumes:
+      - ../2. Init Database:/docker-entrypoint-initdb.d
+      - .:/var/lib/postgresql/data3
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U goUser -d anyDataDB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 4G
+    networks:
+      - net
+
+networks:
+  net:
+    driver: bridge

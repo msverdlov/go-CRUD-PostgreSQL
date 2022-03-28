@@ -1,129 +1,92 @@
 package controller
 
 import (
-	"anyData/internal/app/anyData/helper"
-	"anyData/internal/app/anyData/localStorage"
+	"anyData/internal/app/anyData/middleware"
 	"anyData/internal/app/anyData/model"
-	"errors"
-	"fmt"
 	"github.com/gin-gonic/gin"
-	"math"
 	"net/http"
 	"strconv"
+	"time"
 )
 
-var (
-	dataIds    helper.Counter
-	dataBuffer = make(map[uint64]model.AnyDataStruct)
-)
+const dtFormat = "2006-01-02 15:04:05"
 
-func AddData(c *gin.Context) {
+func GetContent(gContext *gin.Context) {
+	content, err := middleware.GetContent()
+	if err != nil {
+		gContext.IndentedJSON(http.StatusBadRequest, err)
+		return
+	}
+	if content == nil {
+		gContext.IndentedJSON(http.StatusNoContent, content)
+		return
+	}
+
+	gContext.IndentedJSON(http.StatusOK, content)
+}
+
+func GetData(gContext *gin.Context) {
+	rowId, ok := gContext.GetQuery("id")
+	if !ok {
+		gContext.IndentedJSON(http.StatusBadRequest, gin.H{"message": "[GIN-debug] Missing id query param."})
+		return
+	}
+	id, _ := strconv.ParseUint(rowId, 10, 64)
+
+	data, err := middleware.GetDataById(id)
+	if err != nil {
+		gContext.IndentedJSON(http.StatusBadRequest, err)
+		return
+	}
+	if data == nil {
+		gContext.IndentedJSON(http.StatusNoContent, data)
+		return
+	}
+
+	gContext.IndentedJSON(http.StatusOK, data)
+}
+
+func AddData(gContext *gin.Context) {
 	var newData model.AnyDataStruct
-	newData.Id = dataIds.Increment()
-	newData.Date = helper.GetCurrentTime()
-
-	if err := c.BindJSON(&newData); err != nil {
+	dateTime := time.Now().Format(dtFormat)
+	newData.DateUpdate, newData.DateCreate = dateTime, dateTime
+	if err := gContext.BindJSON(&newData); err != nil {
+		return
+	}
+	newId := middleware.AddData(newData)
+	if newId > 0 {
+		gContext.IndentedJSON(http.StatusCreated, newId)
 		return
 	}
 
-	localStorage.DataStorage = append(localStorage.DataStorage, newData)
-
-	dataBuffer[newData.Id] = newData
-	c.IndentedJSON(http.StatusCreated, dataBuffer[newData.Id])
+	gContext.IndentedJSON(http.StatusNotAcceptable, nil)
 }
 
-func AddDataset(c *gin.Context) {
-	var newDataset []model.AnyDataStruct
-
-	if err := c.BindJSON(&newDataset); err != nil {
+func UpdateData(gContext *gin.Context) {
+	var newData model.AnyDataStruct
+	newData.DateUpdate = time.Now().Format(dtFormat)
+	if err := gContext.BindJSON(&newData); err != nil {
 		return
 	}
 
-	for _, newData := range newDataset {
-		newData.Id = dataIds.Increment()
-		newData.Date = helper.GetCurrentTime()
-
-		localStorage.DataStorage = append(localStorage.DataStorage, newData)
-
-		dataBuffer[newData.Id] = newData
-		c.IndentedJSON(http.StatusCreated, dataBuffer[newData.Id])
+	ok := middleware.UpdateData(newData)
+	if ok {
+		gContext.IndentedJSON(http.StatusOK, ok)
+		return
 	}
 
+	gContext.IndentedJSON(http.StatusNotFound, nil)
 }
 
-func FetchDataset(c *gin.Context) {
-	c.IndentedJSON(http.StatusOK, localStorage.DataStorage)
-}
-
-func FetchData(c *gin.Context) {
-	strId, ok := c.GetQuery("id")
-
-	if !ok {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "Missing id query param."})
-		return
-	}
-
-	id, _ := strconv.ParseUint(strId, 10, 64)
-	_, index, err := getDataById(id)
-
-	if err != nil {
-		errorMessage := fmt.Sprintf("ID %v: the data is invalid.", id)
-		c.IndentedJSON(
-			http.StatusBadRequest, gin.H{"message": errorMessage})
-		return
-	}
-
-	c.IndentedJSON(http.StatusOK, localStorage.DataStorage[index])
-}
-
-func UpdateData(c *gin.Context) {
-	strId, ok := c.GetQuery("id")
-
-	if !ok {
-		c.IndentedJSON(http.StatusBadRequest, gin.H{"message": "Missing id query param."})
-		return
-	}
-
-	id, _ := strconv.ParseUint(strId, 10, 64)
-	_, index, err := getDataById(id)
-
-	if err != nil {
-		errorMessage := fmt.Sprintf("ID %v: the data is invalid.", id)
-		c.IndentedJSON(
-			http.StatusBadRequest, gin.H{"message": errorMessage})
-		return
-	}
-
-	localStorage.DataStorage[index].Amount += uint64(0.0716 * math.Pow(10, 18))
-	dataBuffer[id] = localStorage.DataStorage[index]
-	c.IndentedJSON(http.StatusOK, localStorage.DataStorage[index])
-}
-
-func DeleteData(c *gin.Context) {
-	strId, _ := c.GetQuery("id")
+func DeleteData(gContext *gin.Context) {
+	strId, _ := gContext.GetQuery("id")
 	id, _ := strconv.ParseUint(strId, 10, 64)
 
-	_, index, err := getDataById(id)
-	if err != nil {
-		errorMessage := fmt.Sprintf("ID %v: the data is invalid.", id)
-		c.IndentedJSON(
-			http.StatusBadRequest, gin.H{"message": errorMessage})
+	ok := middleware.DeleteData(id)
+	if ok {
+		gContext.IndentedJSON(http.StatusOK, ok)
 		return
 	}
 
-	localStorage.DataStorage = append(localStorage.DataStorage[:index], localStorage.DataStorage[index+1:]...)
-
-	message := fmt.Sprintf("ID %v: deleted.\n", id)
-	c.IndentedJSON(http.StatusOK, message)
-}
-
-func getDataById(id uint64) (model.AnyDataStruct, uint64, error) {
-	dataIndex, err := helper.IndexOf(id)
-
-	isValid := localStorage.DataStorage[dataIndex] == dataBuffer[id]
-	if isValid == true {
-		return localStorage.DataStorage[dataIndex], dataIndex, err
-	} else {
-		return localStorage.DataStorage[dataIndex], 0, errors.New("-1")
-	}
+	gContext.IndentedJSON(http.StatusNotFound, nil)
 }

@@ -5,21 +5,22 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+const proxy = "192.168.0.1"
+
 func InitRoutes() (router *gin.Engine) {
 	router = gin.Default()
-	err := router.SetTrustedProxies([]string{"192.168.0.1"})
+	err := router.SetTrustedProxies([]string{proxy})
 	if err != nil {
 		return nil
 	}
 
-	router.POST("/addData", controller.AddData)
-	router.POST("/addDataset", controller.AddDataset)
+	router.POST("/add-data", controller.AddData)
 
-	router.GET("/fetchDataset", controller.FetchDataset)
-	router.GET("/fetchData", controller.FetchData)
+	router.GET("/get-content", controller.GetContent)
+	router.GET("/get-data", controller.GetData)
 
-	router.PATCH("/updateData", controller.UpdateData)
-	router.DELETE("/deleteData", controller.DeleteData)
+	router.PATCH("/update-data", controller.UpdateData)
+	router.DELETE("/delete-data", controller.DeleteData)
 
 	return router
 }
