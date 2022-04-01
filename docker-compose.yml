@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   db:
-    container_name: "PostgreSQL3_service"
+    container_name: "PostgreSQL4_service"
     image: postgres:13.3
     environment:
       POSTGRES_DB: "anyDataDB"

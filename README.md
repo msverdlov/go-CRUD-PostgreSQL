@@ -16,16 +16,45 @@ go get github.com/gin-gonic/gin
 ```bash
 go get github.com/spf13/viper
 ```
-# Usage 
-## Start server
-Run the command that starts the server on host `127.0.0.1` and port `8080`.
+
+5. Add to git
+`git remote set-url origin git@github.com:msverdlov/go-CRUD-PostgreSQL.git`
+
+# Usage
+## Start server in 1-st bash
+Run the command that starts the server on host `127.0.0.1` and port `8080`
 ```bash
+cd cmd/anyData
 go run main.go
 ```
-After that open another terminal window and insure the path of current working directory is `*/api-go-gin-viper/src/`
+
+## Start server in 2-nd bash
+Rus PostgreSQL
+``
+docker-compose up --build
+``
+
+##In manual mode exec:
+```
+create table content
+(
+id          serial
+constraint content_pk
+primary key,
+mata_data   varchar,
+date_create timestamp,
+date_update timestamp
+);
+
+alter table content
+owner to "goUser";
+
+create unique index content_id_uindex
+on content (id);
+```
+
 ___
-## Add data block
-Adds a data to the storage. Assuming that *address* and *amount* keys/values in `addBlock.json`
+## Add data block in 3-th bash
 ```bash
 curl localhost:8080/add-data --header "Content-Type: application json" -d @examples/addBlock.json --request "POST"
 ```
@@ -40,12 +69,12 @@ Get a add all content from the DB.
 curl localhost:8080/get-content --request "GET"
 ```
 ## Update date
-Update data amount by increasing it. Assign the **`id`** in the query to update a specific data. 
+Update data amount by increasing it. Assign the **`id`** in the query to update a specific data.
 ```bash
 curl localhost:8080/update-data --header "Content-Type: application json" -d @examples/updateBlock.json --request "PATCH"
 ```
 ## Delete data
-Delete a data from DB. Assign data **`id`** in the query to delete the preferred one. 
+Delete a data from DB. Assign data **`id`** in the query to delete the preferred one.
 ```bash
 curl localhost:8080/delete-data?id=10 --request "DELETE"
 ```
